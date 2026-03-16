@@ -65,7 +65,6 @@ Thumbs.db
 
 # NuGet
 *.nupkg
-packages/
 
 # Gradle
 /[Ee]xport[Ee]d[Pp]roject/
