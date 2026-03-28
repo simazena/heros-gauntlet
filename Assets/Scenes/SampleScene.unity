@@ -2216,9 +2216,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemyPrefab: {fileID: 919132149155446097, guid: 48bbaf911a10f504682f5a270b63aa7a, type: 3}
+  spawnPosition: {x: 0.3, y: 0.6, z: 16}
   waveCounts: 020000000400000006000000
-  spawnRadius: 10
-  timeBetweenWaves: 2
+  breakDuration: 5
+  countdownDuration: 3
+  spawnDelay: 1
 --- !u!1001 &1921176022
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -2450,7 +2452,7 @@ Transform:
   m_GameObject: {fileID: 974238577490051442}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.6, z: 0}
+  m_LocalPosition: {x: 0, y: 0.6, z: -10}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3414,7 +3416,7 @@ Transform:
   m_GameObject: {fileID: 3203261901086790309}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.20000005, y: 1.975, z: -4}
+  m_LocalPosition: {x: 0.20000005, y: 1.975, z: -14}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -4107,7 +4109,7 @@ Transform:
   m_GameObject: {fileID: 5542111179601885296}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.20000005, y: 1.975, z: -4}
+  m_LocalPosition: {x: 0.20000005, y: 1.975, z: -14}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4674,6 +4676,17 @@ MonoBehaviour:
   heavyDamage: 25
   attackRange: 1.5
   attackRadius: 1
+  lightPunchLockout: 1
+  heavyPunchLockout: 2
+  rollDuration: 0.8
+  rollCooldown: 1
+  rollDistance: 4
+  jumpOverDuration: 1.5
+  jumpOverCooldown: 2
+  jumpOverDistance: 8
+  jumpOverHeight: 1
+  jumpOverLaunchDelay: 0.25
+  holdThreshold: 0.3
 --- !u!4 &7082370647960444976
 Transform:
   m_ObjectHideFlags: 0

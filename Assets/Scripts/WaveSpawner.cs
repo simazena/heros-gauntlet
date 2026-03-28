@@ -1,30 +1,41 @@
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class WaveSpawner : MonoBehaviour
 {
     public GameObject enemyPrefab;
+    public Vector3 spawnPosition = new Vector3(0.3f, 0.6f, 16f);
     public int[] waveCounts = new int[] { 2, 4, 6 };
-    public float spawnRadius = 10f;
-    public float timeBetweenWaves = 2f;
+    public float breakDuration = 5f;
+    public float countdownDuration = 3f;
+    public float spawnDelay = 1f;
 
     private int _currentWave = -1;
     private bool _allWavesDone;
+    private bool _isSpawning;
+    private bool _interWaveTimerSet;
     private float _nextWaveTime;
     private RuntimeAnimatorController _sharedAnimatorController;
+    private PlayerControl _playerControl;
     private readonly List<EnemyHealth> _activeEnemies = new List<EnemyHealth>();
 
     public int CurrentWave => _currentWave + 1;
     public int TotalWaves => waveCounts.Length;
     public bool AllWavesDone => _allWavesDone;
+    public bool ShowingCountdown =>
+        !_allWavesDone && !_isSpawning && _activeEnemies.Count == 0
+        && _nextWaveTime > Time.time && (_nextWaveTime - Time.time) <= countdownDuration;
+    public float TimeUntilNextWave => Mathf.Max(0f, _nextWaveTime - Time.time);
 
     void Start()
     {
-        _nextWaveTime = Time.time + timeBetweenWaves;
+        _nextWaveTime = Time.time + breakDuration + countdownDuration;
 
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null)
         {
+            _playerControl = p.GetComponent<PlayerControl>();
             Animator playerAnim = p.GetComponentInChildren<Animator>();
             if (playerAnim != null) _sharedAnimatorController = playerAnim.runtimeAnimatorController;
         }
@@ -33,10 +44,22 @@ public class WaveSpawner : MonoBehaviour
     void Update()
     {
         if (_allWavesDone) return;
+        if (_playerControl != null && _playerControl.health <= 0) return;
 
         _activeEnemies.RemoveAll(e => e == null);
 
-        if (_activeEnemies.Count == 0 && Time.time >= _nextWaveTime)
+        if (!_isSpawning && _activeEnemies.Count == 0 && _currentWave >= 0 && !_interWaveTimerSet)
+        {
+            if (_currentWave >= waveCounts.Length - 1)
+            {
+                _allWavesDone = true;
+                return;
+            }
+            _nextWaveTime = Time.time + breakDuration + countdownDuration;
+            _interWaveTimerSet = true;
+        }
+
+        if (!_isSpawning && _activeEnemies.Count == 0 && Time.time >= _nextWaveTime)
         {
             _currentWave++;
             if (_currentWave >= waveCounts.Length)
@@ -44,28 +67,42 @@ public class WaveSpawner : MonoBehaviour
                 _allWavesDone = true;
                 return;
             }
-            SpawnWave(waveCounts[_currentWave]);
-            _nextWaveTime = Time.time + timeBetweenWaves;
+            _interWaveTimerSet = false;
+            StartCoroutine(SpawnWave(waveCounts[_currentWave]));
         }
     }
 
-    private void SpawnWave(int count)
+    private IEnumerator SpawnWave(int count)
     {
-        if (enemyPrefab == null) return;
-        for (int i = 0; i < count; i++)
+        _isSpawning = true;
+        if (enemyPrefab != null)
         {
-            Vector2 offset = Random.insideUnitCircle.normalized * spawnRadius;
-            Vector3 pos = transform.position + new Vector3(offset.x, 0f, offset.y);
-            GameObject enemy = Instantiate(enemyPrefab, pos, Quaternion.identity);
-            ConfigureAsEnemy(enemy);
-            EnemyHealth eh = enemy.GetComponent<EnemyHealth>();
-            if (eh != null) _activeEnemies.Add(eh);
+            for (int i = 0; i < count; i++)
+            {
+                GameObject enemy = Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
+                ConfigureAsEnemy(enemy);
+                EnemyHealth eh = enemy.GetComponent<EnemyHealth>();
+                if (eh != null) _activeEnemies.Add(eh);
+                if (i < count - 1) yield return new WaitForSeconds(spawnDelay);
+            }
+        }
+        _isSpawning = false;
+    }
+
+    private static void SetLayerRecursive(GameObject obj, int layer)
+    {
+        obj.layer = layer;
+        foreach (Transform child in obj.transform)
+        {
+            SetLayerRecursive(child.gameObject, layer);
         }
     }
 
     private void ConfigureAsEnemy(GameObject enemy)
     {
         enemy.name = "Enemy";
+        int enemyLayer = LayerMask.NameToLayer("Enemy");
+        if (enemyLayer >= 0) SetLayerRecursive(enemy, enemyLayer);
 
         if (enemy.GetComponent<EnemyHealth>() == null) enemy.AddComponent<EnemyHealth>();
         if (enemy.GetComponent<EnemyChase>() == null) enemy.AddComponent<EnemyChase>();

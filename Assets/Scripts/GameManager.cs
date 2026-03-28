@@ -12,8 +12,8 @@ public class GameManager : MonoBehaviour
     {
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null) _player = p.GetComponent<PlayerControl>();
-        _waveSpawner = FindFirstObjectByType<WaveSpawner>();
-        _initialEnemyCount = FindObjectsByType<EnemyHealth>(FindObjectsSortMode.None).Length;
+        _waveSpawner = FindAnyObjectByType<WaveSpawner>();
+        _initialEnemyCount = FindObjectsByType<EnemyHealth>().Length;
     }
 
     void Update()
@@ -30,7 +30,7 @@ public class GameManager : MonoBehaviour
         {
             if (_waveSpawner.AllWavesDone) _won = true;
         }
-        else if (_initialEnemyCount > 0 && FindObjectsByType<EnemyHealth>(FindObjectsSortMode.None).Length == 0)
+        else if (_initialEnemyCount > 0 && FindObjectsByType<EnemyHealth>().Length == 0)
         {
             _won = true;
         }
@@ -47,6 +47,21 @@ public class GameManager : MonoBehaviour
             waveStyle.normal.textColor = Color.white;
             string wave = "Wave " + _waveSpawner.CurrentWave + " / " + _waveSpawner.TotalWaves;
             GUI.Label(new Rect(0, 10, Screen.width, 50), wave, waveStyle);
+        }
+
+        if (_waveSpawner != null && !_won && !_lost && _waveSpawner.ShowingCountdown)
+        {
+            int seconds = Mathf.CeilToInt(_waveSpawner.TimeUntilNextWave);
+            if (seconds > 0)
+            {
+                GUIStyle countdownStyle = new GUIStyle(GUI.skin.label);
+                countdownStyle.fontSize = 50;
+                countdownStyle.alignment = TextAnchor.MiddleCenter;
+                countdownStyle.fontStyle = FontStyle.Bold;
+                countdownStyle.normal.textColor = Color.yellow;
+                string text = "Next wave in " + seconds + "...";
+                GUI.Label(new Rect(0, Screen.height * 0.35f, Screen.width, 100), text, countdownStyle);
+            }
         }
 
         if (!_won && !_lost) return;
