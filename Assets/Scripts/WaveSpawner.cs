@@ -11,6 +11,16 @@ public class WaveSpawner : MonoBehaviour
     public float countdownDuration = 3f;
     public float spawnDelay = 1f;
 
+    public Vector3[] platformPositions = new Vector3[] {
+        new Vector3(-7f, 1.5f, -2f),
+        new Vector3(7f, 1.5f, -2f),
+        new Vector3(0f, 1.5f, 8f)
+    };
+    public Vector3 platformScale = new Vector3(2f, 0.5f, 2f);
+    public float pickupHeightAbovePlatform = 1f;
+    public Color platformColor = new Color(0.3f, 0.3f, 0.35f);
+    public Color pickupColor = new Color(0.2f, 1f, 0.4f);
+
     private int _currentWave = -1;
     private bool _allWavesDone;
     private bool _isSpawning;
@@ -19,6 +29,7 @@ public class WaveSpawner : MonoBehaviour
     private RuntimeAnimatorController _sharedAnimatorController;
     private PlayerControl _playerControl;
     private readonly List<EnemyHealth> _activeEnemies = new List<EnemyHealth>();
+    private readonly List<GameObject> _activePickups = new List<GameObject>();
 
     public int CurrentWave => _currentWave + 1;
     public int TotalWaves => waveCounts.Length;
@@ -39,6 +50,8 @@ public class WaveSpawner : MonoBehaviour
             Animator playerAnim = p.GetComponentInChildren<Animator>();
             if (playerAnim != null) _sharedAnimatorController = playerAnim.runtimeAnimatorController;
         }
+
+        SpawnPlatforms();
     }
 
     void Update()
@@ -46,7 +59,7 @@ public class WaveSpawner : MonoBehaviour
         if (_allWavesDone) return;
         if (_playerControl != null && _playerControl.health <= 0) return;
 
-        _activeEnemies.RemoveAll(e => e == null);
+        _activeEnemies.RemoveAll(e => e == null || e.health <= 0);
 
         if (!_isSpawning && _activeEnemies.Count == 0 && _currentWave >= 0 && !_interWaveTimerSet)
         {
@@ -57,6 +70,7 @@ public class WaveSpawner : MonoBehaviour
             }
             _nextWaveTime = Time.time + breakDuration + countdownDuration;
             _interWaveTimerSet = true;
+            SpawnHealthPickups();
         }
 
         if (!_isSpawning && _activeEnemies.Count == 0 && Time.time >= _nextWaveTime)
@@ -87,6 +101,43 @@ public class WaveSpawner : MonoBehaviour
             }
         }
         _isSpawning = false;
+    }
+
+    private void SpawnPlatforms()
+    {
+        foreach (Vector3 pos in platformPositions)
+        {
+            GameObject platform = GameObject.CreatePrimitive(PrimitiveType.Cube);
+            platform.name = "HealthPlatform";
+            platform.transform.position = pos;
+            platform.transform.localScale = platformScale;
+            Renderer r = platform.GetComponent<Renderer>();
+            if (r != null) r.material.color = platformColor;
+        }
+    }
+
+    private void SpawnHealthPickups()
+    {
+        for (int i = _activePickups.Count - 1; i >= 0; i--)
+        {
+            if (_activePickups[i] != null) Destroy(_activePickups[i]);
+        }
+        _activePickups.Clear();
+
+        foreach (Vector3 platformPos in platformPositions)
+        {
+            Vector3 pickupPos = platformPos + Vector3.up * (platformScale.y * 0.5f + pickupHeightAbovePlatform);
+            GameObject pickup = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+            pickup.name = "HealthPickup";
+            pickup.transform.position = pickupPos;
+            pickup.transform.localScale = Vector3.one * 0.5f;
+            Collider col = pickup.GetComponent<Collider>();
+            if (col != null) col.isTrigger = true;
+            Renderer r = pickup.GetComponent<Renderer>();
+            if (r != null) r.material.color = pickupColor;
+            pickup.AddComponent<HealthPickup>();
+            _activePickups.Add(pickup);
+        }
     }
 
     private static void SetLayerRecursive(GameObject obj, int layer)

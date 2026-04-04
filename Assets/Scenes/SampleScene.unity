@@ -2221,6 +2221,13 @@ MonoBehaviour:
   breakDuration: 5
   countdownDuration: 3
   spawnDelay: 1
+  platformPositions:
+  - {x: -9, y: 2, z: -2}
+  - {x: 9, y: 2, z: -2}
+  platformScale: {x: 2, y: 0.5, z: 2}
+  pickupHeightAbovePlatform: 1
+  platformColor: {r: 0.3, g: 0.3, b: 0.35, a: 1}
+  pickupColor: {r: 0.2, g: 1, b: 0.4, a: 1}
 --- !u!1001 &1921176022
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -4678,6 +4685,7 @@ MonoBehaviour:
   attackRadius: 1
   lightPunchLockout: 1
   heavyPunchLockout: 2
+  comboWindow: 0.6
   rollDuration: 0.8
   rollCooldown: 1
   rollDistance: 4

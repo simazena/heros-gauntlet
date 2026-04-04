@@ -10,6 +10,7 @@ public class EnemyChase : MonoBehaviour
     public float separationStrength = 1.5f;
 
     private Animator _animator;
+    private CapsuleCollider _capsule;
     private int _animIDSpeed;
     private int _animIDMotionSpeed;
     private int _animIDGrounded;
@@ -23,6 +24,7 @@ public class EnemyChase : MonoBehaviour
         }
 
         _animator = GetComponentInChildren<Animator>();
+        _capsule = GetComponent<CapsuleCollider>();
         _animIDSpeed = Animator.StringToHash("Speed");
         _animIDMotionSpeed = Animator.StringToHash("MotionSpeed");
         _animIDGrounded = Animator.StringToHash("Grounded");
@@ -48,13 +50,51 @@ public class EnemyChase : MonoBehaviour
 
             Quaternion lookRotation = Quaternion.LookRotation(chaseDir);
             transform.rotation = Quaternion.Slerp(transform.rotation, lookRotation, rotationSpeed * Time.deltaTime);
-            transform.position += moveDir * moveSpeed * Time.deltaTime;
+            transform.position += ResolveMove(moveDir * moveSpeed * Time.deltaTime);
         }
 
         if (_animator != null)
         {
             _animator.SetFloat(_animIDSpeed, isMoving ? moveSpeed : 0f);
         }
+    }
+
+    private Vector3 ResolveMove(Vector3 desired)
+    {
+        if (_capsule == null) return desired;
+        float dist = desired.magnitude;
+        if (dist < 0.0001f) return Vector3.zero;
+
+        Vector3 worldCenter = transform.position + _capsule.center;
+        float halfHeight = Mathf.Max(0f, _capsule.height * 0.5f - _capsule.radius);
+        Vector3 p1 = worldCenter + Vector3.down * halfHeight;
+        Vector3 p2 = worldCenter + Vector3.up * halfHeight;
+        Vector3 dir = desired / dist;
+
+        RaycastHit[] hits = Physics.CapsuleCastAll(p1, p2, _capsule.radius, dir, dist, ~0, QueryTriggerInteraction.Ignore);
+        float minDist = dist;
+        Vector3 hitNormal = Vector3.zero;
+        bool blocked = false;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider c = hits[i].collider;
+            if (c.gameObject.name != "HealthPlatform") continue;
+            if (hits[i].distance < minDist)
+            {
+                minDist = hits[i].distance;
+                hitNormal = hits[i].normal;
+                blocked = true;
+            }
+        }
+
+        if (!blocked) return desired;
+
+        float safeDist = Mathf.Max(0f, minDist - 0.02f);
+        Vector3 moveAlong = dir * safeDist;
+        Vector3 leftover = desired - moveAlong;
+        Vector3 slide = Vector3.ProjectOnPlane(leftover, hitNormal);
+        slide.y = 0f;
+        return moveAlong + slide;
     }
 
     private Vector3 ComputeSeparation()

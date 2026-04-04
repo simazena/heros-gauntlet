@@ -1,12 +1,16 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
+    public float gameOverRestartDelay = 5f;
+
     private PlayerControl _player;
     private WaveSpawner _waveSpawner;
     private int _initialEnemyCount;
     private bool _won;
     private bool _lost;
+    private float _restartTime;
 
     void Start()
     {
@@ -18,11 +22,17 @@ public class GameManager : MonoBehaviour
 
     void Update()
     {
+        if (_lost && Time.time >= _restartTime)
+        {
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            return;
+        }
         if (_won || _lost) return;
 
         if (_player != null && _player.health <= 0)
         {
             _lost = true;
+            _restartTime = Time.time + gameOverRestartDelay;
             return;
         }
 

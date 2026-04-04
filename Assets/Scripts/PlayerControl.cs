@@ -19,6 +19,7 @@ public class PlayerControl : MonoBehaviour
     public float attackRadius = 1f;
     public float lightPunchLockout = 0.5f;
     public float heavyPunchLockout = 0.8f;
+    public float comboWindow = 0.6f;
 
     public float rollDuration = 1.4f;
     public float rollCooldown = 1.6f;
@@ -39,7 +40,13 @@ public class PlayerControl : MonoBehaviour
     private CharacterController _characterController;
     private ThirdPersonController _thirdPersonController;
     private int _animIDPunch;
+    private int _animIDLightPunch2;
+    private int _animIDPunchCombo;
     private int _animIDHookPunch;
+    private int _animIDKick;
+    private int _animIDKick3;
+    private int _animIDPlayerDeath;
+    private bool _isDead;
     private int _animIDRoll;
     private int _animIDJumpOver;
     private float _activeEndTime;
@@ -54,6 +61,10 @@ public class PlayerControl : MonoBehaviour
     private float _activeStartY;
     private float _activeArcDelay;
     private float _punchLockoutEnd;
+    private float _comboWindowEnd;
+    private int _comboStep;
+    private float _kickComboWindowEnd;
+    private int _kickComboStep;
 
     void Start()
     {
@@ -63,7 +74,12 @@ public class PlayerControl : MonoBehaviour
         _characterController = GetComponent<CharacterController>();
         _thirdPersonController = GetComponent<ThirdPersonController>();
         _animIDPunch = Animator.StringToHash("Punch");
+        _animIDLightPunch2 = Animator.StringToHash("LightPunch2");
+        _animIDPunchCombo = Animator.StringToHash("PunchCombo");
         _animIDHookPunch = Animator.StringToHash("HookPunch");
+        _animIDKick = Animator.StringToHash("Kick");
+        _animIDKick3 = Animator.StringToHash("Kick3");
+        _animIDPlayerDeath = Animator.StringToHash("PlayerDeath");
         _animIDRoll = Animator.StringToHash("Roll");
         _animIDJumpOver = Animator.StringToHash("JumpOver");
     }
@@ -72,6 +88,21 @@ public class PlayerControl : MonoBehaviour
     {
         healthText.text = health + " / " + maxHealth;
         healthBar.value = (float)health / (float)maxHealth;
+
+        if (!_isDead && health <= 0)
+        {
+            _isDead = true;
+            _animator.SetTrigger(_animIDPlayerDeath);
+            if (_characterController != null) _characterController.enabled = false;
+        }
+        if (_isDead)
+        {
+            if (_thirdPersonController != null && _thirdPersonController.enabled)
+            {
+                _thirdPersonController.enabled = false;
+            }
+            return;
+        }
 
         if (IsInvulnerable && Time.time >= _activeEndTime)
         {
@@ -104,17 +135,27 @@ public class PlayerControl : MonoBehaviour
 
         if (_input.attack)
         {
-            _animator.SetTrigger(_animIDPunch);
+            int nextStep = (Time.time < _comboWindowEnd) ? _comboStep + 1 : 1;
+            if (nextStep > 3) nextStep = 1;
+            int trigger = nextStep == 2 ? _animIDLightPunch2
+                        : nextStep == 3 ? _animIDPunchCombo
+                        : _animIDPunch;
+            _animator.SetTrigger(trigger);
             DealDamage(lightDamage);
             _punchLockoutEnd = Time.time + lightPunchLockout;
+            _comboStep = nextStep == 3 ? 0 : nextStep;
+            _comboWindowEnd = _punchLockoutEnd + comboWindow;
             _input.attack = false;
         }
 
         if (_input.heavyAttack)
         {
-            _animator.SetTrigger(_animIDHookPunch);
+            bool combo = _kickComboStep == 1 && Time.time < _kickComboWindowEnd;
+            _animator.SetTrigger(combo ? _animIDKick3 : _animIDKick);
             DealDamage(heavyDamage);
             _punchLockoutEnd = Time.time + heavyPunchLockout;
+            _kickComboStep = combo ? 0 : 1;
+            _kickComboWindowEnd = _punchLockoutEnd + comboWindow;
             _input.heavyAttack = false;
         }
 
