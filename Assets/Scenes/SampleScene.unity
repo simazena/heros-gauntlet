@@ -2171,6 +2171,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e095c5011ed3d845bf2a1d55c558462, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  gameOverRestartDelay: 5
 --- !u!1 &1780000004
 GameObject:
   m_ObjectHideFlags: 0
@@ -2216,8 +2217,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   enemyPrefab: {fileID: 919132149155446097, guid: 48bbaf911a10f504682f5a270b63aa7a, type: 3}
+  enemy2Prefab: {fileID: 919132149155446097, guid: 583ce4c73a5413b43a99090b9c41a2c5, type: 3}
   spawnPosition: {x: 0.3, y: 0.6, z: 16}
   waveCounts: 020000000400000006000000
+  enemy2Counts: 000000000100000002000000
+  enemy2Health: 100
+  enemy2MoveSpeed: 1
+  enemy2Damage: 15
+  enemy2AttackCooldown: 5
   breakDuration: 5
   countdownDuration: 3
   spawnDelay: 1

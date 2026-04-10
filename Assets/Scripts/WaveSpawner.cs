@@ -5,8 +5,14 @@ using UnityEngine;
 public class WaveSpawner : MonoBehaviour
 {
     public GameObject enemyPrefab;
+    public GameObject enemy2Prefab;
     public Vector3 spawnPosition = new Vector3(0.3f, 0.6f, 16f);
     public int[] waveCounts = new int[] { 2, 4, 6 };
+    public int[] enemy2Counts = new int[] { 0, 1, 2 };
+    public int enemy2Health = 100;
+    public float enemy2MoveSpeed = 1f;
+    public int enemy2Damage = 15;
+    public float enemy2AttackCooldown = 5f;
     public float breakDuration = 5f;
     public float countdownDuration = 3f;
     public float spawnDelay = 1f;
@@ -21,10 +27,13 @@ public class WaveSpawner : MonoBehaviour
     public Color platformColor = new Color(0.3f, 0.3f, 0.35f);
     public Color pickupColor = new Color(0.2f, 1f, 0.4f);
 
+    public static bool AutoStartOnLoad;
+
     private int _currentWave = -1;
     private bool _allWavesDone;
     private bool _isSpawning;
     private bool _interWaveTimerSet;
+    private bool _gameStarted;
     private float _nextWaveTime;
     private RuntimeAnimatorController _sharedAnimatorController;
     private PlayerControl _playerControl;
@@ -41,8 +50,6 @@ public class WaveSpawner : MonoBehaviour
 
     void Start()
     {
-        _nextWaveTime = Time.time + breakDuration + countdownDuration;
-
         GameObject p = GameObject.FindGameObjectWithTag("Player");
         if (p != null)
         {
@@ -52,10 +59,23 @@ public class WaveSpawner : MonoBehaviour
         }
 
         SpawnPlatforms();
+
+        if (AutoStartOnLoad)
+        {
+            AutoStartOnLoad = false;
+            StartGame();
+        }
+    }
+
+    public void StartGame()
+    {
+        _gameStarted = true;
+        _nextWaveTime = Time.time + breakDuration + countdownDuration;
     }
 
     void Update()
     {
+        if (!_gameStarted) return;
         if (_allWavesDone) return;
         if (_playerControl != null && _playerControl.health <= 0) return;
 
@@ -82,25 +102,60 @@ public class WaveSpawner : MonoBehaviour
                 return;
             }
             _interWaveTimerSet = false;
-            StartCoroutine(SpawnWave(waveCounts[_currentWave]));
+            StartCoroutine(SpawnWave(_currentWave));
         }
     }
 
-    private IEnumerator SpawnWave(int count)
+    private IEnumerator SpawnWave(int wave)
     {
         _isSpawning = true;
+        int e1 = wave < waveCounts.Length ? waveCounts[wave] : 0;
+        int e2 = wave < enemy2Counts.Length ? enemy2Counts[wave] : 0;
+        int total = (enemyPrefab != null ? e1 : 0) + (enemy2Prefab != null ? e2 : 0);
+        int spawned = 0;
+
         if (enemyPrefab != null)
         {
-            for (int i = 0; i < count; i++)
+            for (int i = 0; i < e1; i++)
             {
-                GameObject enemy = Instantiate(enemyPrefab, spawnPosition, Quaternion.identity);
-                ConfigureAsEnemy(enemy);
-                EnemyHealth eh = enemy.GetComponent<EnemyHealth>();
-                if (eh != null) _activeEnemies.Add(eh);
-                if (i < count - 1) yield return new WaitForSeconds(spawnDelay);
+                SpawnOne(enemyPrefab, false);
+                spawned++;
+                if (spawned < total) yield return new WaitForSeconds(spawnDelay);
+            }
+        }
+        if (enemy2Prefab != null)
+        {
+            for (int i = 0; i < e2; i++)
+            {
+                SpawnOne(enemy2Prefab, true);
+                spawned++;
+                if (spawned < total) yield return new WaitForSeconds(spawnDelay);
             }
         }
         _isSpawning = false;
+    }
+
+    private void SpawnOne(GameObject prefab, bool isEnemy2)
+    {
+        GameObject enemy = Instantiate(prefab, spawnPosition, Quaternion.identity);
+        ConfigureAsEnemy(enemy);
+        if (isEnemy2) ApplyEnemy2Stats(enemy);
+        EnemyHealth eh = enemy.GetComponent<EnemyHealth>();
+        if (eh != null) _activeEnemies.Add(eh);
+    }
+
+    private void ApplyEnemy2Stats(GameObject enemy)
+    {
+        EnemyHealth eh = enemy.GetComponent<EnemyHealth>();
+        if (eh != null) eh.health = enemy2Health;
+        EnemyChase ec = enemy.GetComponent<EnemyChase>();
+        if (ec != null) ec.moveSpeed = enemy2MoveSpeed;
+        EnemyAttack ea = enemy.GetComponent<EnemyAttack>();
+        if (ea != null)
+        {
+            ea.damage = enemy2Damage;
+            ea.attackCooldown = enemy2AttackCooldown;
+        }
     }
 
     private void SpawnPlatforms()

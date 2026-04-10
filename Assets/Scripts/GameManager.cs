@@ -24,6 +24,7 @@ public class GameManager : MonoBehaviour
     {
         if (_lost && Time.time >= _restartTime)
         {
+            WaveSpawner.AutoStartOnLoad = true;
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
             return;
         }

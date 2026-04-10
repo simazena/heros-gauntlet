@@ -39,12 +39,11 @@ public class PlayerControl : MonoBehaviour
     private StarterAssetsInputs _input;
     private CharacterController _characterController;
     private ThirdPersonController _thirdPersonController;
-    private int _animIDPunch;
-    private int _animIDLightPunch2;
-    private int _animIDPunchCombo;
-    private int _animIDHookPunch;
-    private int _animIDKick;
-    private int _animIDKick3;
+    private int _animIDPunch1;
+    private int _animIDPunch2;
+    private int _animIDPunch3;
+    private int _animIDKick1;
+    private int _animIDKick2;
     private int _animIDPlayerDeath;
     private bool _isDead;
     private int _animIDRoll;
@@ -73,12 +72,11 @@ public class PlayerControl : MonoBehaviour
         _input = GetComponent<StarterAssetsInputs>();
         _characterController = GetComponent<CharacterController>();
         _thirdPersonController = GetComponent<ThirdPersonController>();
-        _animIDPunch = Animator.StringToHash("Punch");
-        _animIDLightPunch2 = Animator.StringToHash("LightPunch2");
-        _animIDPunchCombo = Animator.StringToHash("PunchCombo");
-        _animIDHookPunch = Animator.StringToHash("HookPunch");
-        _animIDKick = Animator.StringToHash("Kick");
-        _animIDKick3 = Animator.StringToHash("Kick3");
+        _animIDPunch1 = Animator.StringToHash("Punch1");
+        _animIDPunch2 = Animator.StringToHash("Punch2");
+        _animIDPunch3 = Animator.StringToHash("Punch3");
+        _animIDKick1 = Animator.StringToHash("Kick1");
+        _animIDKick2 = Animator.StringToHash("Kick2");
         _animIDPlayerDeath = Animator.StringToHash("PlayerDeath");
         _animIDRoll = Animator.StringToHash("Roll");
         _animIDJumpOver = Animator.StringToHash("JumpOver");
@@ -135,28 +133,42 @@ public class PlayerControl : MonoBehaviour
 
         if (_input.attack)
         {
-            int nextStep = (Time.time < _comboWindowEnd) ? _comboStep + 1 : 1;
-            if (nextStep > 3) nextStep = 1;
-            int trigger = nextStep == 2 ? _animIDLightPunch2
-                        : nextStep == 3 ? _animIDPunchCombo
-                        : _animIDPunch;
-            _animator.SetTrigger(trigger);
-            DealDamage(lightDamage);
-            _punchLockoutEnd = Time.time + lightPunchLockout;
-            _comboStep = nextStep == 3 ? 0 : nextStep;
-            _comboWindowEnd = _punchLockoutEnd + comboWindow;
-            _input.attack = false;
+            if (Time.time < _punchLockoutEnd)
+            {
+                _input.attack = false;
+            }
+            else
+            {
+                int nextStep = (Time.time < _comboWindowEnd) ? _comboStep + 1 : 1;
+                if (nextStep > 3) nextStep = 1;
+                int trigger = nextStep == 2 ? _animIDPunch2
+                            : nextStep == 3 ? _animIDPunch3
+                            : _animIDPunch1;
+                _animator.SetTrigger(trigger);
+                DealDamage(lightDamage);
+                _punchLockoutEnd = Time.time + lightPunchLockout;
+                _comboStep = nextStep == 3 ? 0 : nextStep;
+                _comboWindowEnd = _punchLockoutEnd + comboWindow;
+                _input.attack = false;
+            }
         }
 
         if (_input.heavyAttack)
         {
-            bool combo = _kickComboStep == 1 && Time.time < _kickComboWindowEnd;
-            _animator.SetTrigger(combo ? _animIDKick3 : _animIDKick);
-            DealDamage(heavyDamage);
-            _punchLockoutEnd = Time.time + heavyPunchLockout;
-            _kickComboStep = combo ? 0 : 1;
-            _kickComboWindowEnd = _punchLockoutEnd + comboWindow;
-            _input.heavyAttack = false;
+            if (Time.time < _punchLockoutEnd)
+            {
+                _input.heavyAttack = false;
+            }
+            else
+            {
+                bool combo = _kickComboStep == 1 && Time.time < _kickComboWindowEnd;
+                _animator.SetTrigger(combo ? _animIDKick2 : _animIDKick1);
+                DealDamage(heavyDamage);
+                _punchLockoutEnd = Time.time + heavyPunchLockout;
+                _kickComboStep = combo ? 0 : 1;
+                _kickComboWindowEnd = _punchLockoutEnd + comboWindow;
+                _input.heavyAttack = false;
+            }
         }
 
         if (_thirdPersonController != null)
