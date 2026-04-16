@@ -6,6 +6,8 @@ public class MenuManager : MonoBehaviour
     public string gameTitle = "Hero's Gauntlet";
     public float healthFillDuration = 1.5f;
 
+    public static MenuManager Instance;
+
     private enum State { Title, Controls, HowToPlay, Playing }
     private State _state = State.Title;
 
@@ -13,6 +15,12 @@ public class MenuManager : MonoBehaviour
     private PlayerControl _player;
     private ThirdPersonController _tpc;
     private float _menuStartTime;
+
+    public bool InMenu => _state != State.Playing;
+    public float HealthFill => healthFillDuration <= 0f ? 1f : Mathf.Clamp01((Time.unscaledTime - _menuStartTime) / healthFillDuration);
+
+    void OnEnable() { Instance = this; }
+    void OnDisable() { if (Instance == this) Instance = null; }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Bootstrap()
@@ -39,21 +47,6 @@ public class MenuManager : MonoBehaviour
             if (_tpc != null) _tpc.enabled = false;
         }
     }
-
-    void Update()
-    {
-        if (_state == State.Playing) return;
-        if (_player == null || _player.healthBar == null) return;
-        float t = healthFillDuration <= 0f ? 1f : Mathf.Clamp01((Time.unscaledTime - _menuStartTime) / healthFillDuration);
-        _player.healthBar.value = t;
-        if (_player.healthText != null)
-        {
-            int displayHealth = Mathf.RoundToInt(_player.maxHealth * t);
-            _player.healthText.text = displayHealth + " / " + _player.maxHealth;
-        }
-    }
-
-    public bool InMenu => _state != State.Playing;
 
     void OnGUI()
     {

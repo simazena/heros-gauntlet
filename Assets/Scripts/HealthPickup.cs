@@ -6,6 +6,7 @@ public class HealthPickup : MonoBehaviour
     public float rotateSpeed = 90f;
     public float bobAmplitude = 0.15f;
     public float bobSpeed = 2f;
+    public AudioClip pickupSfx;
 
     private float _baseY;
 
@@ -29,6 +30,7 @@ public class HealthPickup : MonoBehaviour
         if (player == null || player.health <= 0) return;
         if (player.health >= player.maxHealth) return;
         player.health = Mathf.Min(player.maxHealth, player.health + healAmount);
+        if (pickupSfx != null) AudioSource.PlayClipAtPoint(pickupSfx, transform.position);
         Destroy(gameObject);
     }
 }

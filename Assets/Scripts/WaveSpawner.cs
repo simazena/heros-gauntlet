@@ -13,6 +13,9 @@ public class WaveSpawner : MonoBehaviour
     public float enemy2MoveSpeed = 1f;
     public int enemy2Damage = 15;
     public float enemy2AttackCooldown = 5f;
+    public AudioClip enemy1AttackSfx;
+    public AudioClip enemy2AttackSfx;
+    public AudioClip healthPickupSfx;
     public float breakDuration = 5f;
     public float countdownDuration = 3f;
     public float spawnDelay = 1f;
@@ -139,7 +142,15 @@ public class WaveSpawner : MonoBehaviour
     {
         GameObject enemy = Instantiate(prefab, spawnPosition, Quaternion.identity);
         ConfigureAsEnemy(enemy);
-        if (isEnemy2) ApplyEnemy2Stats(enemy);
+        if (isEnemy2)
+        {
+            ApplyEnemy2Stats(enemy);
+        }
+        else
+        {
+            EnemyAttack ea = enemy.GetComponent<EnemyAttack>();
+            if (ea != null) ea.attackSfx = enemy1AttackSfx;
+        }
         EnemyHealth eh = enemy.GetComponent<EnemyHealth>();
         if (eh != null) _activeEnemies.Add(eh);
     }
@@ -155,6 +166,7 @@ public class WaveSpawner : MonoBehaviour
         {
             ea.damage = enemy2Damage;
             ea.attackCooldown = enemy2AttackCooldown;
+            ea.attackSfx = enemy2AttackSfx;
         }
     }
 
@@ -190,7 +202,8 @@ public class WaveSpawner : MonoBehaviour
             if (col != null) col.isTrigger = true;
             Renderer r = pickup.GetComponent<Renderer>();
             if (r != null) r.material.color = pickupColor;
-            pickup.AddComponent<HealthPickup>();
+            HealthPickup hp = pickup.AddComponent<HealthPickup>();
+            hp.pickupSfx = healthPickupSfx;
             _activePickups.Add(pickup);
         }
     }

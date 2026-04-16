@@ -1,25 +1,36 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using TMPro;
-using UnityEngine.UI;
 using StarterAssets;
 
 [DefaultExecutionOrder(-100)]
 public class PlayerControl : MonoBehaviour
 {
-    public Slider healthBar;
-    public TMP_Text healthText;
     public int health = 100;
     public int maxHealth = 0;
 
-    public int lightDamage = 10;
-    public int heavyDamage = 25;
+    public int punch1Damage = 10;
+    public int punch2Damage = 15;
+    public int punch3Damage = 20;
+    public int kick1Damage = 20;
+    public int kick2Damage = 25;
     public float attackRange = 1.5f;
     public float attackRadius = 1f;
     public float lightPunchLockout = 0.5f;
     public float heavyPunchLockout = 0.8f;
     public float comboWindow = 0.6f;
+    public float attackHitNormalizedTime = 0.45f;
+    public float attackFallbackHitDelay = 0.3f;
+    public float punch1Arc = 60f;
+    public float punch2Arc = 90f;
+    public float punch3Arc = 60f;
+    public float kick1Arc = 90f;
+    public float kick2Arc = 210f;
+    public float punch1ArcOffset = 0f;
+    public float punch2ArcOffset = 45f;
+    public float punch3ArcOffset = 0f;
+    public float kick1ArcOffset = 45f;
+    public float kick2ArcOffset = 0f;
 
     public float rollDuration = 1.4f;
     public float rollCooldown = 1.6f;
@@ -84,9 +95,6 @@ public class PlayerControl : MonoBehaviour
 
     void Update()
     {
-        healthText.text = health + " / " + maxHealth;
-        healthBar.value = (float)health / (float)maxHealth;
-
         if (!_isDead && health <= 0)
         {
             _isDead = true;
@@ -131,9 +139,11 @@ public class PlayerControl : MonoBehaviour
 
         HandleActionInput();
 
+        bool grounded = _thirdPersonController != null && _thirdPersonController.Grounded;
+
         if (_input.attack)
         {
-            if (Time.time < _punchLockoutEnd)
+            if (Time.time < _punchLockoutEnd || !grounded || IsInvulnerable)
             {
                 _input.attack = false;
             }
@@ -144,8 +154,17 @@ public class PlayerControl : MonoBehaviour
                 int trigger = nextStep == 2 ? _animIDPunch2
                             : nextStep == 3 ? _animIDPunch3
                             : _animIDPunch1;
+                int dmg = nextStep == 2 ? punch2Damage
+                        : nextStep == 3 ? punch3Damage
+                        : punch1Damage;
+                float arc = nextStep == 2 ? punch2Arc
+                          : nextStep == 3 ? punch3Arc
+                          : punch1Arc;
+                float arcOffset = nextStep == 2 ? punch2ArcOffset
+                                : nextStep == 3 ? punch3ArcOffset
+                                : punch1ArcOffset;
                 _animator.SetTrigger(trigger);
-                DealDamage(lightDamage);
+                StartCoroutine(DealDamageDelayed(dmg, trigger, arc, arcOffset));
                 _punchLockoutEnd = Time.time + lightPunchLockout;
                 _comboStep = nextStep == 3 ? 0 : nextStep;
                 _comboWindowEnd = _punchLockoutEnd + comboWindow;
@@ -155,15 +174,16 @@ public class PlayerControl : MonoBehaviour
 
         if (_input.heavyAttack)
         {
-            if (Time.time < _punchLockoutEnd)
+            if (Time.time < _punchLockoutEnd || !grounded || IsInvulnerable)
             {
                 _input.heavyAttack = false;
             }
             else
             {
                 bool combo = _kickComboStep == 1 && Time.time < _kickComboWindowEnd;
-                _animator.SetTrigger(combo ? _animIDKick2 : _animIDKick1);
-                DealDamage(heavyDamage);
+                int kickTrigger = combo ? _animIDKick2 : _animIDKick1;
+                _animator.SetTrigger(kickTrigger);
+                StartCoroutine(DealDamageDelayed(combo ? kick2Damage : kick1Damage, kickTrigger, combo ? kick2Arc : kick1Arc, combo ? kick2ArcOffset : kick1ArcOffset));
                 _punchLockoutEnd = Time.time + heavyPunchLockout;
                 _kickComboStep = combo ? 0 : 1;
                 _kickComboWindowEnd = _punchLockoutEnd + comboWindow;
@@ -239,17 +259,58 @@ public class PlayerControl : MonoBehaviour
         if (disableCC && _characterController != null) _characterController.enabled = false;
     }
 
-    private void DealDamage(int amount)
+    private void DealDamage(int amount, float arcDegrees, float arcOffset)
     {
-        Vector3 center = transform.position + transform.forward * attackRange + Vector3.up;
-        Collider[] hits = Physics.OverlapSphere(center, attackRadius);
+        float reach = attackRange + attackRadius;
+        Collider[] hits = Physics.OverlapSphere(transform.position + Vector3.up, reach);
+        Vector3 centerDir = Quaternion.Euler(0f, arcOffset, 0f) * transform.forward;
+        float halfCos = Mathf.Cos(arcDegrees * 0.5f * Mathf.Deg2Rad);
+        float reachSqr = reach * reach;
         foreach (var hit in hits)
         {
             EnemyHealth enemy = hit.GetComponent<EnemyHealth>();
-            if (enemy != null)
+            if (enemy == null) continue;
+            Vector3 toEnemy = enemy.transform.position - transform.position;
+            toEnemy.y = 0f;
+            float distSqr = toEnemy.sqrMagnitude;
+            if (distSqr > reachSqr) continue;
+            if (distSqr < 0.0001f)
             {
                 enemy.TakeDamage(amount);
+                continue;
             }
+            if (Vector3.Dot(centerDir, toEnemy.normalized) < halfCos) continue;
+            enemy.TakeDamage(amount);
         }
+    }
+
+    private IEnumerator DealDamageDelayed(int damage, int stateHash, float arcDegrees, float arcOffset)
+    {
+        if (_animator == null)
+        {
+            yield return new WaitForSeconds(attackFallbackHitDelay);
+            DealDamage(damage, arcDegrees, arcOffset);
+            yield break;
+        }
+
+        yield return null;
+        float waitStart = Time.time;
+        while (_animator.IsInTransition(0))
+        {
+            if (Time.time - waitStart > 0.5f) break;
+            yield return null;
+        }
+
+        float pollStart = Time.time;
+        while (true)
+        {
+            AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
+            if (info.shortNameHash != stateHash) yield break;
+            if (info.normalizedTime >= attackHitNormalizedTime) break;
+            if (Time.time - pollStart > 1f) break;
+            yield return null;
+        }
+
+        DealDamage(damage, arcDegrees, arcOffset);
     }
 }

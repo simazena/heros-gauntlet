@@ -49,6 +49,10 @@ public class GameManager : MonoBehaviour
 
     void OnGUI()
     {
+        GUI.depth = 1;
+
+        DrawHealthBar();
+
         if (_waveSpawner != null && !_won && !_lost && _waveSpawner.CurrentWave >= 1)
         {
             GUIStyle waveStyle = new GUIStyle(GUI.skin.label);
@@ -71,7 +75,7 @@ public class GameManager : MonoBehaviour
                 countdownStyle.fontStyle = FontStyle.Bold;
                 countdownStyle.normal.textColor = Color.yellow;
                 string text = "Next wave in " + seconds + "...";
-                GUI.Label(new Rect(0, Screen.height * 0.35f, Screen.width, 100), text, countdownStyle);
+                GUI.Label(new Rect(0, Screen.height * 0.15f, Screen.width, 100), text, countdownStyle);
             }
         }
 
@@ -86,5 +90,42 @@ public class GameManager : MonoBehaviour
 
         Rect rect = new Rect(0, 0, Screen.width, Screen.height);
         GUI.Label(rect, message, style);
+    }
+
+    private void DrawHealthBar()
+    {
+        if (_player == null) return;
+        if (MenuManager.Instance != null && MenuManager.Instance.InMenu) return;
+        int max = _player.maxHealth;
+        if (max <= 0) return;
+
+        float fill = Mathf.Clamp01((float)_player.health / (float)max);
+        int displayHealth = Mathf.Max(0, _player.health);
+
+        float barWidth = 330f;
+        float barHeight = 30f;
+        float x = 20f;
+        float y = Screen.height - barHeight - 20f;
+
+        Color red = new Color(0.85f, 0.15f, 0.15f, 1f);
+        Color yellow = new Color(0.95f, 0.8f, 0.1f, 1f);
+        Color green = new Color(0.2f, 0.75f, 0.2f, 1f);
+        Color barColor = fill > 0.5f
+            ? Color.Lerp(yellow, green, (fill - 0.5f) * 2f)
+            : Color.Lerp(red, yellow, fill * 2f);
+
+        Color prev = GUI.color;
+        GUI.color = new Color(0.1f, 0.1f, 0.1f, 0.85f);
+        GUI.DrawTexture(new Rect(x, y, barWidth, barHeight), Texture2D.whiteTexture);
+        GUI.color = barColor;
+        GUI.DrawTexture(new Rect(x, y, barWidth * fill, barHeight), Texture2D.whiteTexture);
+        GUI.color = prev;
+
+        GUIStyle hpStyle = new GUIStyle(GUI.skin.label);
+        hpStyle.fontSize = 18;
+        hpStyle.alignment = TextAnchor.MiddleCenter;
+        hpStyle.fontStyle = FontStyle.Bold;
+        hpStyle.normal.textColor = Color.white;
+        GUI.Label(new Rect(x, y, barWidth, barHeight), displayHealth + " / " + max, hpStyle);
     }
 }
