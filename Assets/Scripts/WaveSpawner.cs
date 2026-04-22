@@ -25,7 +25,7 @@ public class WaveSpawner : MonoBehaviour
         new Vector3(7f, 1.5f, -2f),
         new Vector3(0f, 1.5f, 8f)
     };
-    public Vector3 platformScale = new Vector3(2f, 0.5f, 2f);
+    public Vector3 platformScale = new Vector3(3f, 0.5f, 3f);
     public float pickupHeightAbovePlatform = 1f;
     public Color platformColor = new Color(0.3f, 0.3f, 0.35f);
     public Color pickupColor = new Color(0.2f, 1f, 0.4f);

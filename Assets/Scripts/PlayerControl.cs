@@ -14,13 +14,14 @@ public class PlayerControl : MonoBehaviour
     public int punch3Damage = 20;
     public int kick1Damage = 20;
     public int kick2Damage = 25;
-    public float attackRange = 1.5f;
+    public float attackRange = 0.5f;
     public float attackRadius = 1f;
     public float lightPunchLockout = 0.5f;
     public float heavyPunchLockout = 0.8f;
-    public float comboWindow = 0.6f;
+    public float comboWindow = 0.5f;
     public float attackHitNormalizedTime = 0.45f;
     public float attackFallbackHitDelay = 0.3f;
+    public float attackLockoutTrim = 0.35f;
     public float punch1Arc = 60f;
     public float punch2Arc = 90f;
     public float punch3Arc = 60f;
@@ -71,10 +72,12 @@ public class PlayerControl : MonoBehaviour
     private float _activeStartY;
     private float _activeArcDelay;
     private float _punchLockoutEnd;
+    private float _attackInputLockEnd;
     private float _comboWindowEnd;
     private int _comboStep;
     private float _kickComboWindowEnd;
     private int _kickComboStep;
+    private float _groundY;
 
     void Start()
     {
@@ -91,6 +94,7 @@ public class PlayerControl : MonoBehaviour
         _animIDPlayerDeath = Animator.StringToHash("PlayerDeath");
         _animIDRoll = Animator.StringToHash("Roll");
         _animIDJumpOver = Animator.StringToHash("JumpOver");
+        _groundY = transform.position.y;
     }
 
     void Update()
@@ -129,10 +133,12 @@ public class PlayerControl : MonoBehaviour
                 float progress = Mathf.Clamp01((Time.time - _activeStartTime) / _activeDuration);
                 float arcProgress = Mathf.Clamp01((progress - _activeArcDelay) / (1f - _activeArcDelay));
                 float sinValue = Mathf.Sin(arcProgress * Mathf.PI);
-                float yArc = _activeArcHeight * sinValue * sinValue;
+                float effectiveHeight = _activeArcHeight + Mathf.Max(0f, (_activeStartY - _groundY) * 0.5f);
+                float yArc = effectiveHeight * sinValue * sinValue;
+                float yLerp = Mathf.Lerp(_activeStartY, _groundY, arcProgress);
                 transform.position = new Vector3(
                     transform.position.x + step.x,
-                    _activeStartY + yArc,
+                    yLerp + yArc,
                     transform.position.z + step.z);
             }
         }
@@ -143,7 +149,7 @@ public class PlayerControl : MonoBehaviour
 
         if (_input.attack)
         {
-            if (Time.time < _punchLockoutEnd || !grounded || IsInvulnerable)
+            if (Time.time < _attackInputLockEnd || !grounded || IsInvulnerable)
             {
                 _input.attack = false;
             }
@@ -166,15 +172,17 @@ public class PlayerControl : MonoBehaviour
                 _animator.SetTrigger(trigger);
                 StartCoroutine(DealDamageDelayed(dmg, trigger, arc, arcOffset));
                 _punchLockoutEnd = Time.time + lightPunchLockout;
+                _attackInputLockEnd = _punchLockoutEnd;
                 _comboStep = nextStep == 3 ? 0 : nextStep;
-                _comboWindowEnd = _punchLockoutEnd + comboWindow;
+                _comboWindowEnd = _attackInputLockEnd + comboWindow;
+                StartCoroutine(SyncLockoutToAnimation(trigger));
                 _input.attack = false;
             }
         }
 
         if (_input.heavyAttack)
         {
-            if (Time.time < _punchLockoutEnd || !grounded || IsInvulnerable)
+            if (Time.time < _attackInputLockEnd || !grounded || IsInvulnerable)
             {
                 _input.heavyAttack = false;
             }
@@ -185,8 +193,10 @@ public class PlayerControl : MonoBehaviour
                 _animator.SetTrigger(kickTrigger);
                 StartCoroutine(DealDamageDelayed(combo ? kick2Damage : kick1Damage, kickTrigger, combo ? kick2Arc : kick1Arc, combo ? kick2ArcOffset : kick1ArcOffset));
                 _punchLockoutEnd = Time.time + heavyPunchLockout;
+                _attackInputLockEnd = _punchLockoutEnd;
                 _kickComboStep = combo ? 0 : 1;
-                _kickComboWindowEnd = _punchLockoutEnd + comboWindow;
+                _kickComboWindowEnd = _attackInputLockEnd + comboWindow;
+                StartCoroutine(SyncLockoutToAnimation(kickTrigger));
                 _input.heavyAttack = false;
             }
         }
@@ -261,6 +271,7 @@ public class PlayerControl : MonoBehaviour
 
     private void DealDamage(int amount, float arcDegrees, float arcOffset)
     {
+        if (transform.position.y > _groundY + 0.5f) return;
         float reach = attackRange + attackRadius;
         Collider[] hits = Physics.OverlapSphere(transform.position + Vector3.up, reach);
         Vector3 centerDir = Quaternion.Euler(0f, arcOffset, 0f) * transform.forward;
@@ -281,6 +292,33 @@ public class PlayerControl : MonoBehaviour
             }
             if (Vector3.Dot(centerDir, toEnemy.normalized) < halfCos) continue;
             enemy.TakeDamage(amount);
+        }
+    }
+
+    private IEnumerator SyncLockoutToAnimation(int stateHash)
+    {
+        if (_animator == null) yield break;
+        yield return null;
+        float waitStart = Time.time;
+        while (_animator.IsInTransition(0))
+        {
+            if (Time.time - waitStart > 0.5f) yield break;
+            yield return null;
+        }
+        AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
+        if (info.shortNameHash != stateHash) yield break;
+        float speed = Mathf.Max(0.01f, info.speed);
+        float fullDuration = info.length / speed;
+        float trimmedDuration = Mathf.Max(0.1f, fullDuration - attackLockoutTrim);
+        _punchLockoutEnd = Time.time + trimmedDuration;
+        _attackInputLockEnd = Time.time + fullDuration;
+        if (stateHash == _animIDKick1 || stateHash == _animIDKick2)
+        {
+            _kickComboWindowEnd = _attackInputLockEnd + comboWindow;
+        }
+        else
+        {
+            _comboWindowEnd = _attackInputLockEnd + comboWindow;
         }
     }
 

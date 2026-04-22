@@ -5,13 +5,15 @@ public class EnemyAttack : MonoBehaviour
 {
     public Transform target;
     public int damage = 5;
-    public float attackRange = 0.9f;
+    public float attackRange = 1f;
     public float attackCooldown = 3f;
     public float hitNormalizedTime = 0.45f;
     public float fallbackHitDelay = 0.5f;
     public AudioClip attackSfx;
+    public float attackLockFallback = 1f;
 
     private PlayerControl _playerControl;
+    private EnemyChase _enemyChase;
     private Animator _animator;
     private int _animIDEnemyAttack;
     private float _nextAttackTime;
@@ -25,6 +27,7 @@ public class EnemyAttack : MonoBehaviour
         }
         if (target != null) _playerControl = target.GetComponent<PlayerControl>();
 
+        _enemyChase = GetComponent<EnemyChase>();
         _animator = GetComponentInChildren<Animator>();
         _animIDEnemyAttack = Animator.StringToHash("EnemyAttack");
     }
@@ -38,9 +41,28 @@ public class EnemyAttack : MonoBehaviour
         {
             if (_animator != null) _animator.SetTrigger(_animIDEnemyAttack);
             if (attackSfx != null) AudioSource.PlayClipAtPoint(attackSfx, transform.position);
+            if (_enemyChase != null) _enemyChase.LockMovement(attackLockFallback);
             StartCoroutine(ApplyDamageDelayed());
+            StartCoroutine(SyncMovementLockToAnimation());
             _nextAttackTime = Time.time + attackCooldown;
         }
+    }
+
+    private IEnumerator SyncMovementLockToAnimation()
+    {
+        if (_animator == null || _enemyChase == null) yield break;
+        yield return null;
+        float waitStart = Time.time;
+        while (_animator.IsInTransition(0))
+        {
+            if (Time.time - waitStart > 0.5f) yield break;
+            yield return null;
+        }
+        AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
+        if (info.shortNameHash != _animIDEnemyAttack) yield break;
+        float speed = Mathf.Max(0.01f, info.speed);
+        float duration = info.length / speed;
+        _enemyChase.LockMovement(duration);
     }
 
     private IEnumerator ApplyDamageDelayed()

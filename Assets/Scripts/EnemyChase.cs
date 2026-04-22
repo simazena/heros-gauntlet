@@ -14,6 +14,12 @@ public class EnemyChase : MonoBehaviour
     private int _animIDSpeed;
     private int _animIDMotionSpeed;
     private int _animIDGrounded;
+    private float _movementLockEnd;
+
+    public void LockMovement(float duration)
+    {
+        _movementLockEnd = Time.time + duration;
+    }
 
     void Start()
     {
@@ -38,6 +44,12 @@ public class EnemyChase : MonoBehaviour
     void Update()
     {
         if (target == null) return;
+
+        if (Time.time < _movementLockEnd)
+        {
+            if (_animator != null) _animator.SetFloat(_animIDSpeed, 0f);
+            return;
+        }
 
         Vector3 direction = target.position - transform.position;
         direction.y = 0f;

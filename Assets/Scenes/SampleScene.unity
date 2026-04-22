@@ -1719,7 +1719,7 @@ MonoBehaviour:
   - {x: -9, y: 2, z: 0}
   - {x: 9, y: 2, z: 0}
   - {x: 0, y: 2, z: -15}
-  platformScale: {x: 2, y: 0.5, z: 2}
+  platformScale: {x: 3, y: 0.5, z: 3}
   pickupHeightAbovePlatform: 1
   platformColor: {r: 0.3, g: 0.3, b: 0.35, a: 1}
   pickupColor: {r: 0.2, g: 1, b: 0.4, a: 1}
@@ -4177,13 +4177,14 @@ MonoBehaviour:
   punch3Damage: 20
   kick1Damage: 20
   kick2Damage: 25
-  attackRange: 1.5
+  attackRange: 0.5
   attackRadius: 1
   lightPunchLockout: 1
   heavyPunchLockout: 2
-  comboWindow: 0.6
+  comboWindow: 0.5
   attackHitNormalizedTime: 0.45
   attackFallbackHitDelay: 0.3
+  attackLockoutTrim: 0.35
   punch1Arc: 60
   punch2Arc: 90
   punch3Arc: 60
