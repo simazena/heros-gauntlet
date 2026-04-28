@@ -4,6 +4,14 @@ using UnityEngine.SceneManagement;
 public class GameManager : MonoBehaviour
 {
     public float gameOverRestartDelay = 5f;
+    public AudioClip gameOverSfx;
+    public float waveBannerDuration = 3f;
+    public string[] waveBanners = new string[]
+    {
+        "First Blood",
+        "The Brutes Awaken",
+        "Final Trial"
+    };
 
     private PlayerControl _player;
     private WaveSpawner _waveSpawner;
@@ -11,6 +19,9 @@ public class GameManager : MonoBehaviour
     private bool _won;
     private bool _lost;
     private float _restartTime;
+    private int _lastBannerWave;
+    private float _bannerEndTime;
+    private Texture2D _vignetteTex;
 
     void Start()
     {
@@ -18,6 +29,29 @@ public class GameManager : MonoBehaviour
         if (p != null) _player = p.GetComponent<PlayerControl>();
         _waveSpawner = FindAnyObjectByType<WaveSpawner>();
         _initialEnemyCount = FindObjectsByType<EnemyHealth>().Length;
+        _vignetteTex = BuildVignetteTexture(256);
+    }
+
+    private Texture2D BuildVignetteTexture(int size)
+    {
+        Texture2D tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        tex.wrapMode = TextureWrapMode.Clamp;
+        tex.filterMode = FilterMode.Bilinear;
+        Vector2 center = new Vector2((size - 1) * 0.5f, (size - 1) * 0.5f);
+        float maxDist = center.magnitude;
+        Color[] pixels = new Color[size * size];
+        for (int y = 0; y < size; y++)
+        {
+            for (int x = 0; x < size; x++)
+            {
+                float d = Vector2.Distance(new Vector2(x, y), center) / maxDist;
+                float a = Mathf.Clamp01(Mathf.Pow(d, 2f));
+                pixels[y * size + x] = new Color(1f, 1f, 1f, a);
+            }
+        }
+        tex.SetPixels(pixels);
+        tex.Apply();
+        return tex;
     }
 
     void Update()
@@ -34,11 +68,21 @@ public class GameManager : MonoBehaviour
         {
             _lost = true;
             _restartTime = Time.time + gameOverRestartDelay;
+            if (gameOverSfx != null)
+            {
+                Vector3 pos = _player != null ? _player.transform.position : Vector3.zero;
+                AudioSource.PlayClipAtPoint(gameOverSfx, pos);
+            }
             return;
         }
 
         if (_waveSpawner != null)
         {
+            if (_waveSpawner.CurrentWave > _lastBannerWave && _waveSpawner.CurrentWave >= 1)
+            {
+                _lastBannerWave = _waveSpawner.CurrentWave;
+                _bannerEndTime = Time.time + waveBannerDuration;
+            }
             if (_waveSpawner.AllWavesDone) _won = true;
         }
         else if (_initialEnemyCount > 0 && FindObjectsByType<EnemyHealth>().Length == 0)
@@ -51,6 +95,7 @@ public class GameManager : MonoBehaviour
     {
         GUI.depth = 1;
 
+        DrawVignette();
         DrawHealthBar();
 
         if (_waveSpawner != null && !_won && !_lost && _waveSpawner.CurrentWave >= 1)
@@ -62,6 +107,30 @@ public class GameManager : MonoBehaviour
             waveStyle.normal.textColor = Color.white;
             string wave = "Wave " + _waveSpawner.CurrentWave + " / " + _waveSpawner.TotalWaves;
             GUI.Label(new Rect(0, 10, Screen.width, 50), wave, waveStyle);
+        }
+
+        if (_waveSpawner != null && !_won && !_lost && Time.time < _bannerEndTime)
+        {
+            int wave = _waveSpawner.CurrentWave;
+            if (wave >= 1 && waveBanners != null && wave - 1 < waveBanners.Length)
+            {
+                float remaining = _bannerEndTime - Time.time;
+                float t = waveBannerDuration <= 0f ? 1f : 1f - (remaining / waveBannerDuration);
+                float fade = 0.2f;
+                float alpha = 1f;
+                if (t < fade) alpha = t / fade;
+                else if (t > 1f - fade) alpha = (1f - t) / fade;
+                alpha = Mathf.Clamp01(alpha);
+
+                GUIStyle bannerStyle = new GUIStyle(GUI.skin.label);
+                bannerStyle.fontSize = 60;
+                bannerStyle.alignment = TextAnchor.MiddleCenter;
+                bannerStyle.fontStyle = FontStyle.Bold;
+                bannerStyle.normal.textColor = new Color(1f, 0.9f, 0.4f, alpha);
+
+                string banner = "Wave " + wave + ": " + waveBanners[wave - 1];
+                GUI.Label(new Rect(0, Screen.height * 0.20f, Screen.width, 100), banner, bannerStyle);
+            }
         }
 
         if (_waveSpawner != null && !_won && !_lost && _waveSpawner.ShowingCountdown)
@@ -90,6 +159,29 @@ public class GameManager : MonoBehaviour
 
         Rect rect = new Rect(0, 0, Screen.width, Screen.height);
         GUI.Label(rect, message, style);
+    }
+
+    private void DrawVignette()
+    {
+        if (_player == null || _vignetteTex == null) return;
+        if (MenuManager.Instance != null && MenuManager.Instance.InMenu) return;
+        int max = _player.maxHealth;
+        if (max <= 0) return;
+        int hp = _player.health;
+        if (hp <= 0 || hp > 20) return;
+
+        float fill = Mathf.Clamp01((float)hp / (float)max);
+        Color red = new Color(0.85f, 0.15f, 0.15f, 1f);
+        Color yellow = new Color(0.95f, 0.8f, 0.1f, 1f);
+        Color barColor = Color.Lerp(red, yellow, Mathf.Clamp01(fill * 2f));
+
+        float intensity = hp <= 10 ? 1f : 0.55f;
+        Color tint = new Color(barColor.r, barColor.g, barColor.b, intensity);
+
+        Color prev = GUI.color;
+        GUI.color = tint;
+        GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), _vignetteTex);
+        GUI.color = prev;
     }
 
     private void DrawHealthBar()

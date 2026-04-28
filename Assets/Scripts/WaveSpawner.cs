@@ -16,9 +16,10 @@ public class WaveSpawner : MonoBehaviour
     public AudioClip enemy1AttackSfx;
     public AudioClip enemy2AttackSfx;
     public AudioClip healthPickupSfx;
-    public float breakDuration = 5f;
+    public float breakDuration = 3f;
     public float countdownDuration = 3f;
     public float spawnDelay = 1f;
+    public float waveBannerDelay = 3f;
 
     public Vector3[] platformPositions = new Vector3[] {
         new Vector3(-7f, 1.5f, -2f),
@@ -112,6 +113,7 @@ public class WaveSpawner : MonoBehaviour
     private IEnumerator SpawnWave(int wave)
     {
         _isSpawning = true;
+        if (waveBannerDelay > 0f) yield return new WaitForSeconds(waveBannerDelay);
         int e1 = wave < waveCounts.Length ? waveCounts[wave] : 0;
         int e2 = wave < enemy2Counts.Length ? enemy2Counts[wave] : 0;
         int total = (enemyPrefab != null ? e1 : 0) + (enemy2Prefab != null ? e2 : 0);

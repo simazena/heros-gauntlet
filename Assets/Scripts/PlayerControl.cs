@@ -20,6 +20,7 @@ public class PlayerControl : MonoBehaviour
     public float heavyPunchLockout = 0.8f;
     public float comboWindow = 0.5f;
     public float attackHitNormalizedTime = 0.45f;
+    public float kick1SoundNormalizedTime = 0.30f;
     public float attackFallbackHitDelay = 0.3f;
     public float attackLockoutTrim = 0.35f;
     public float punch1Arc = 60f;
@@ -44,6 +45,17 @@ public class PlayerControl : MonoBehaviour
     public float jumpOverLaunchDelay = 0.25f;
 
     public float holdThreshold = 0.5f;
+
+    public AudioClip jumpSfx;
+    public AudioClip jumpOverSfx;
+    public AudioClip punchHitSfx;
+    public AudioClip kickHitSfx;
+    public AudioClip punchMissSfx;
+    public AudioClip kickMissSfx;
+    public AudioClip heartbeatLowSfx;
+    public AudioClip heartbeatCriticalSfx;
+    public int heartbeatLowThreshold = 20;
+    public int heartbeatCriticalThreshold = 10;
 
     public bool IsInvulnerable { get; private set; }
 
@@ -78,6 +90,8 @@ public class PlayerControl : MonoBehaviour
     private float _kickComboWindowEnd;
     private int _kickComboStep;
     private float _groundY;
+    private AudioSource _heartbeatSource;
+    private int _heartbeatState;
 
     void Start()
     {
@@ -95,6 +109,10 @@ public class PlayerControl : MonoBehaviour
         _animIDRoll = Animator.StringToHash("Roll");
         _animIDJumpOver = Animator.StringToHash("JumpOver");
         _groundY = transform.position.y;
+        _heartbeatSource = gameObject.AddComponent<AudioSource>();
+        _heartbeatSource.loop = true;
+        _heartbeatSource.playOnAwake = false;
+        _heartbeatSource.spatialBlend = 0f;
     }
 
     void Update()
@@ -104,7 +122,9 @@ public class PlayerControl : MonoBehaviour
             _isDead = true;
             _animator.SetTrigger(_animIDPlayerDeath);
             if (_characterController != null) _characterController.enabled = false;
+            StopHeartbeat();
         }
+        UpdateHeartbeat();
         if (_isDead)
         {
             if (_thirdPersonController != null && _thirdPersonController.enabled)
@@ -170,7 +190,7 @@ public class PlayerControl : MonoBehaviour
                                 : nextStep == 3 ? punch3ArcOffset
                                 : punch1ArcOffset;
                 _animator.SetTrigger(trigger);
-                StartCoroutine(DealDamageDelayed(dmg, trigger, arc, arcOffset));
+                StartCoroutine(DealDamageDelayed(dmg, trigger, arc, arcOffset, punchHitSfx, punchMissSfx));
                 _punchLockoutEnd = Time.time + lightPunchLockout;
                 _attackInputLockEnd = _punchLockoutEnd;
                 _comboStep = nextStep == 3 ? 0 : nextStep;
@@ -191,7 +211,8 @@ public class PlayerControl : MonoBehaviour
                 bool combo = _kickComboStep == 1 && Time.time < _kickComboWindowEnd;
                 int kickTrigger = combo ? _animIDKick2 : _animIDKick1;
                 _animator.SetTrigger(kickTrigger);
-                StartCoroutine(DealDamageDelayed(combo ? kick2Damage : kick1Damage, kickTrigger, combo ? kick2Arc : kick1Arc, combo ? kick2ArcOffset : kick1ArcOffset));
+                float kickSoundTime = combo ? -1f : kick1SoundNormalizedTime;
+                StartCoroutine(DealDamageDelayed(combo ? kick2Damage : kick1Damage, kickTrigger, combo ? kick2Arc : kick1Arc, combo ? kick2ArcOffset : kick1ArcOffset, kickHitSfx, kickMissSfx, -1f, kickSoundTime));
                 _punchLockoutEnd = Time.time + heavyPunchLockout;
                 _attackInputLockEnd = _punchLockoutEnd;
                 _kickComboStep = combo ? 0 : 1;
@@ -209,11 +230,28 @@ public class PlayerControl : MonoBehaviour
                 _thirdPersonController.enabled = shouldEnable;
             }
         }
+
+        if (_animator != null)
+        {
+            AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
+            bool inPunch3 = info.shortNameHash == _animIDPunch3;
+            bool inLockout = Time.time < _punchLockoutEnd;
+            bool desired = inPunch3 && inLockout;
+            if (_animator.applyRootMotion != desired) _animator.applyRootMotion = desired;
+        }
     }
 
     private void HandleActionInput()
     {
         if (Keyboard.current == null) return;
+
+        if (IsInvulnerable)
+        {
+            _input.jump = false;
+            _spacePressedAt = -1f;
+            _jumpOverFired = false;
+            return;
+        }
 
         if (Keyboard.current.leftCtrlKey.wasPressedThisFrame)
         {
@@ -231,7 +269,8 @@ public class PlayerControl : MonoBehaviour
         {
             if (Time.time - _spacePressedAt >= holdThreshold)
             {
-                TryStartAction(_animIDJumpOver, jumpOverDuration, jumpOverDistance, jumpOverCooldown, true, jumpOverHeight, jumpOverLaunchDelay);
+                bool started = TryStartAction(_animIDJumpOver, jumpOverDuration, jumpOverDistance, jumpOverCooldown, true, jumpOverHeight, jumpOverLaunchDelay);
+                if (started && jumpOverSfx != null) StartCoroutine(PlayJumpOverSfxDelayed(jumpOverDuration * jumpOverLaunchDelay));
                 _jumpOverFired = true;
             }
             else
@@ -245,15 +284,19 @@ public class PlayerControl : MonoBehaviour
             if (!_jumpOverFired && _spacePressedAt >= 0f)
             {
                 _input.jump = true;
+                if (jumpSfx != null && _thirdPersonController != null && _thirdPersonController.Grounded)
+                {
+                    AudioSource.PlayClipAtPoint(jumpSfx, transform.position);
+                }
             }
             _spacePressedAt = -1f;
         }
     }
 
-    private void TryStartAction(int triggerID, float duration, float distance, float cooldown, bool disableCC, float arcHeight, float arcDelay)
+    private bool TryStartAction(int triggerID, float duration, float distance, float cooldown, bool disableCC, float arcHeight, float arcDelay)
     {
-        if (Time.time < _nextActionTime || health <= 0) return;
-        if (_thirdPersonController == null || !_thirdPersonController.Grounded) return;
+        if (Time.time < _nextActionTime || health <= 0) return false;
+        if (_thirdPersonController == null || !_thirdPersonController.Grounded) return false;
 
         _animator.SetTrigger(triggerID);
         IsInvulnerable = true;
@@ -267,32 +310,83 @@ public class PlayerControl : MonoBehaviour
         _activeStartY = transform.position.y;
         _activeDisableCC = disableCC;
         if (disableCC && _characterController != null) _characterController.enabled = false;
+        return true;
     }
 
-    private void DealDamage(int amount, float arcDegrees, float arcOffset)
+    private void DealDamage(int amount, float arcDegrees, float arcOffset, AudioClip hitSfx, AudioClip missSfx)
     {
-        if (transform.position.y > _groundY + 0.5f) return;
-        float reach = attackRange + attackRadius;
-        Collider[] hits = Physics.OverlapSphere(transform.position + Vector3.up, reach);
-        Vector3 centerDir = Quaternion.Euler(0f, arcOffset, 0f) * transform.forward;
-        float halfCos = Mathf.Cos(arcDegrees * 0.5f * Mathf.Deg2Rad);
-        float reachSqr = reach * reach;
-        foreach (var hit in hits)
+        bool landed = false;
+        if (transform.position.y <= _groundY + 0.5f)
         {
-            EnemyHealth enemy = hit.GetComponent<EnemyHealth>();
-            if (enemy == null) continue;
-            Vector3 toEnemy = enemy.transform.position - transform.position;
-            toEnemy.y = 0f;
-            float distSqr = toEnemy.sqrMagnitude;
-            if (distSqr > reachSqr) continue;
-            if (distSqr < 0.0001f)
+            float reach = attackRange + attackRadius;
+            Collider[] hits = Physics.OverlapSphere(transform.position + Vector3.up, reach);
+            Vector3 centerDir = Quaternion.Euler(0f, arcOffset, 0f) * transform.forward;
+            float halfCos = Mathf.Cos(arcDegrees * 0.5f * Mathf.Deg2Rad);
+            float reachSqr = reach * reach;
+            foreach (var hit in hits)
             {
+                EnemyHealth enemy = hit.GetComponent<EnemyHealth>();
+                if (enemy == null) continue;
+                Vector3 toEnemy = enemy.transform.position - transform.position;
+                toEnemy.y = 0f;
+                float distSqr = toEnemy.sqrMagnitude;
+                if (distSqr > reachSqr) continue;
+                if (distSqr < 0.0001f)
+                {
+                    enemy.TakeDamage(amount);
+                    landed = true;
+                    continue;
+                }
+                if (Vector3.Dot(centerDir, toEnemy.normalized) < halfCos) continue;
                 enemy.TakeDamage(amount);
-                continue;
+                landed = true;
             }
-            if (Vector3.Dot(centerDir, toEnemy.normalized) < halfCos) continue;
-            enemy.TakeDamage(amount);
         }
+        if (landed)
+        {
+            if (hitSfx != null) AudioSource.PlayClipAtPoint(hitSfx, transform.position);
+        }
+        else if (missSfx != null)
+        {
+            AudioSource.PlayClipAtPoint(missSfx, transform.position);
+        }
+    }
+
+    private void UpdateHeartbeat()
+    {
+        if (_heartbeatSource == null) return;
+        int desired = 0;
+        if (!_isDead && health > 0)
+        {
+            if (health <= heartbeatCriticalThreshold && heartbeatCriticalSfx != null) desired = 2;
+            else if (health <= heartbeatLowThreshold && heartbeatLowSfx != null) desired = 1;
+        }
+        if (desired == _heartbeatState) return;
+        _heartbeatState = desired;
+        if (desired == 0)
+        {
+            _heartbeatSource.Stop();
+            _heartbeatSource.clip = null;
+        }
+        else
+        {
+            _heartbeatSource.clip = desired == 2 ? heartbeatCriticalSfx : heartbeatLowSfx;
+            _heartbeatSource.Play();
+        }
+    }
+
+    private void StopHeartbeat()
+    {
+        if (_heartbeatSource == null) return;
+        _heartbeatSource.Stop();
+        _heartbeatSource.clip = null;
+        _heartbeatState = 0;
+    }
+
+    private IEnumerator PlayJumpOverSfxDelayed(float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        if (jumpOverSfx != null) AudioSource.PlayClipAtPoint(jumpOverSfx, transform.position);
     }
 
     private IEnumerator SyncLockoutToAnimation(int stateHash)
@@ -322,12 +416,16 @@ public class PlayerControl : MonoBehaviour
         }
     }
 
-    private IEnumerator DealDamageDelayed(int damage, int stateHash, float arcDegrees, float arcOffset)
+    private IEnumerator DealDamageDelayed(int damage, int stateHash, float arcDegrees, float arcOffset, AudioClip hitSfx = null, AudioClip missSfx = null, float hitNormalizedTime = -1f, float soundNormalizedTime = -1f)
     {
+        float damageTime = hitNormalizedTime < 0f ? attackHitNormalizedTime : hitNormalizedTime;
+        float soundTime = soundNormalizedTime < 0f ? damageTime : soundNormalizedTime;
+        bool soundEarly = soundTime < damageTime - 0.001f;
+
         if (_animator == null)
         {
             yield return new WaitForSeconds(attackFallbackHitDelay);
-            DealDamage(damage, arcDegrees, arcOffset);
+            DealDamage(damage, arcDegrees, arcOffset, hitSfx, missSfx);
             yield break;
         }
 
@@ -339,16 +437,53 @@ public class PlayerControl : MonoBehaviour
             yield return null;
         }
 
+        bool soundFired = false;
         float pollStart = Time.time;
         while (true)
         {
             AnimatorStateInfo info = _animator.GetCurrentAnimatorStateInfo(0);
             if (info.shortNameHash != stateHash) yield break;
-            if (info.normalizedTime >= attackHitNormalizedTime) break;
+            if (soundEarly && !soundFired && info.normalizedTime >= soundTime)
+            {
+                AudioClip clip = WouldHit(arcDegrees, arcOffset) ? hitSfx : missSfx;
+                if (clip != null) AudioSource.PlayClipAtPoint(clip, transform.position);
+                soundFired = true;
+            }
+            if (info.normalizedTime >= damageTime) break;
             if (Time.time - pollStart > 1f) break;
             yield return null;
         }
 
-        DealDamage(damage, arcDegrees, arcOffset);
+        if (soundFired)
+        {
+            DealDamage(damage, arcDegrees, arcOffset, null, null);
+        }
+        else
+        {
+            DealDamage(damage, arcDegrees, arcOffset, hitSfx, missSfx);
+        }
+    }
+
+    private bool WouldHit(float arcDegrees, float arcOffset)
+    {
+        if (transform.position.y > _groundY + 0.5f) return false;
+        float reach = attackRange + attackRadius;
+        Collider[] hits = Physics.OverlapSphere(transform.position + Vector3.up, reach);
+        Vector3 centerDir = Quaternion.Euler(0f, arcOffset, 0f) * transform.forward;
+        float halfCos = Mathf.Cos(arcDegrees * 0.5f * Mathf.Deg2Rad);
+        float reachSqr = reach * reach;
+        foreach (var hit in hits)
+        {
+            EnemyHealth enemy = hit.GetComponent<EnemyHealth>();
+            if (enemy == null) continue;
+            Vector3 toEnemy = enemy.transform.position - transform.position;
+            toEnemy.y = 0f;
+            float distSqr = toEnemy.sqrMagnitude;
+            if (distSqr > reachSqr) continue;
+            if (distSqr < 0.0001f) return true;
+            if (Vector3.Dot(centerDir, toEnemy.normalized) < halfCos) continue;
+            return true;
+        }
+        return false;
     }
 }

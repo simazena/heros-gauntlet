@@ -1653,9 +1653,10 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 5e095c5011ed3d845bf2a1d55c558462, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
+  m_Name:
+  m_EditorClassIdentifier:
   gameOverRestartDelay: 5
+  gameOverSfx: {fileID: 8300000, guid: 74261066d7ef747dca69555ed4aab4f3, type: 3}
 --- !u!1 &1780000004
 GameObject:
   m_ObjectHideFlags: 0
@@ -1712,7 +1713,7 @@ MonoBehaviour:
   enemy1AttackSfx: {fileID: 8300000, guid: 2c536cff31c3a402898ac356ebd96aba, type: 3}
   enemy2AttackSfx: {fileID: 8300000, guid: c55fb47f6865f480c989e8407de1d19c, type: 3}
   healthPickupSfx: {fileID: 8300000, guid: 9596c471f295348e2900a1a33670a1c2, type: 3}
-  breakDuration: 5
+  breakDuration: 3
   countdownDuration: 3
   spawnDelay: 1
   platformPositions:
@@ -1954,7 +1955,7 @@ Transform:
   m_GameObject: {fileID: 974238577490051442}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0, y: 0.6, z: -10}
+  m_LocalPosition: {x: 0, y: 0.6, z: -9}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -2918,7 +2919,7 @@ Transform:
   m_GameObject: {fileID: 3203261901086790309}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.20000005, y: 1.975, z: -14}
+  m_LocalPosition: {x: 0.20000005, y: 1.975, z: -13}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -3611,7 +3612,7 @@ Transform:
   m_GameObject: {fileID: 5542111179601885296}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.20000005, y: 1.975, z: -14}
+  m_LocalPosition: {x: 0.20000005, y: 1.975, z: -13}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -4183,6 +4184,7 @@ MonoBehaviour:
   heavyPunchLockout: 2
   comboWindow: 0.5
   attackHitNormalizedTime: 0.45
+  kick1SoundNormalizedTime: 0.3
   attackFallbackHitDelay: 0.3
   attackLockoutTrim: 0.35
   punch1Arc: 60
@@ -4204,6 +4206,16 @@ MonoBehaviour:
   jumpOverHeight: 1.2
   jumpOverLaunchDelay: 0.25
   holdThreshold: 0.3
+  jumpSfx: {fileID: 8300000, guid: 205be67afd3eb43a18e9e78c60a271f1, type: 3}
+  jumpOverSfx: {fileID: 8300000, guid: f30387194582d48e5a0bfa2625403e7c, type: 3}
+  punchHitSfx: {fileID: 8300000, guid: e82879725b40ce444bca27d19a75f42c, type: 3}
+  kickHitSfx: {fileID: 8300000, guid: 1e3312d22540aa14597a1fb4739f2782, type: 3}
+  punchMissSfx: {fileID: 8300000, guid: 482611fe6bc559142a00be6e726b4862, type: 3}
+  kickMissSfx: {fileID: 8300000, guid: a65d792d6907f744490c9b15bb70edfe, type: 3}
+  heartbeatLowSfx: {fileID: 8300000, guid: 82609b2d5a10546919af85db39df978f, type: 3}
+  heartbeatCriticalSfx: {fileID: 8300000, guid: c8ae9e4c7285b4d4e9ab299236b2027a, type: 3}
+  heartbeatLowThreshold: 20
+  heartbeatCriticalThreshold: 10
 --- !u!4 &7082370647960444976
 Transform:
   m_ObjectHideFlags: 0
