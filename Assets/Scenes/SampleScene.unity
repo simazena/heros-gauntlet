@@ -1655,8 +1655,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e095c5011ed3d845bf2a1d55c558462, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  gameOverRestartDelay: 5
+  gameOverRestartDelay: 6
   gameOverSfx: {fileID: 8300000, guid: 74261066d7ef747dca69555ed4aab4f3, type: 3}
+  winSfx: {fileID: 8300000, guid: d6945231be24c7240a281458fc849e1f, type: 3}
 --- !u!1 &1780000004
 GameObject:
   m_ObjectHideFlags: 0
@@ -4189,12 +4190,12 @@ MonoBehaviour:
   attackLockoutTrim: 0.35
   punch1Arc: 60
   punch2Arc: 90
-  punch3Arc: 60
+  punch3Arc: 90
   kick1Arc: 90
   kick2Arc: 210
   punch1ArcOffset: 0
   punch2ArcOffset: 45
-  punch3ArcOffset: 0
+  punch3ArcOffset: -45
   kick1ArcOffset: 45
   kick2ArcOffset: 0
   rollDuration: 0.8

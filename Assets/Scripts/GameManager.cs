@@ -3,8 +3,12 @@ using UnityEngine.SceneManagement;
 
 public class GameManager : MonoBehaviour
 {
-    public float gameOverRestartDelay = 5f;
+    public float gameOverRestartDelay = 6f;
     public AudioClip gameOverSfx;
+    public AudioClip winSfx;
+    public string winSubMessage = "You are ready for what waits beyond the arena.";
+    public string lossSubMessage = "The Gauntlet does not mourn. Rise again.";
+    public float subMessageDelay = 1.5f;
     public float waveBannerDuration = 3f;
     public string[] waveBanners = new string[]
     {
@@ -22,6 +26,7 @@ public class GameManager : MonoBehaviour
     private int _lastBannerWave;
     private float _bannerEndTime;
     private Texture2D _vignetteTex;
+    private float _endStateTime;
 
     void Start()
     {
@@ -30,6 +35,13 @@ public class GameManager : MonoBehaviour
         _waveSpawner = FindAnyObjectByType<WaveSpawner>();
         _initialEnemyCount = FindObjectsByType<EnemyHealth>().Length;
         _vignetteTex = BuildVignetteTexture(256);
+    }
+
+    private void PlayWinSfx()
+    {
+        if (winSfx == null) return;
+        Vector3 pos = _player != null ? _player.transform.position : Vector3.zero;
+        AudioSource.PlayClipAtPoint(winSfx, pos);
     }
 
     private Texture2D BuildVignetteTexture(int size)
@@ -59,6 +71,12 @@ public class GameManager : MonoBehaviour
         if (_lost && Time.time >= _restartTime)
         {
             WaveSpawner.AutoStartOnLoad = true;
+            MenuManager.SkipMenuOnLoad = true;
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+            return;
+        }
+        if (_won && Time.time >= _restartTime)
+        {
             SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
             return;
         }
@@ -67,6 +85,7 @@ public class GameManager : MonoBehaviour
         if (_player != null && _player.health <= 0)
         {
             _lost = true;
+            _endStateTime = Time.time;
             _restartTime = Time.time + gameOverRestartDelay;
             if (gameOverSfx != null)
             {
@@ -83,10 +102,27 @@ public class GameManager : MonoBehaviour
                 _lastBannerWave = _waveSpawner.CurrentWave;
                 _bannerEndTime = Time.time + waveBannerDuration;
             }
-            if (_waveSpawner.AllWavesDone) _won = true;
+            if (_waveSpawner.AllWavesDone)
+            {
+                if (!_won)
+                {
+                    if (_player != null) _player.StopHeartbeat();
+                    _endStateTime = Time.time;
+                    _restartTime = Time.time + gameOverRestartDelay;
+                    PlayWinSfx();
+                }
+                _won = true;
+            }
         }
         else if (_initialEnemyCount > 0 && FindObjectsByType<EnemyHealth>().Length == 0)
         {
+            if (!_won)
+            {
+                if (_player != null) _player.StopHeartbeat();
+                _endStateTime = Time.time;
+                _restartTime = Time.time + gameOverRestartDelay;
+                PlayWinSfx();
+            }
             _won = true;
         }
     }
@@ -157,14 +193,30 @@ public class GameManager : MonoBehaviour
         style.fontStyle = FontStyle.Bold;
         style.normal.textColor = _won ? Color.green : Color.red;
 
-        Rect rect = new Rect(0, 0, Screen.width, Screen.height);
-        GUI.Label(rect, message, style);
+        float mainTop = Screen.height * 0.40f;
+        float mainHeight = 110f;
+        GUI.Label(new Rect(0, mainTop, Screen.width, mainHeight), message, style);
+
+        string sub = _won ? winSubMessage : lossSubMessage;
+        if (!string.IsNullOrEmpty(sub) && Time.time - _endStateTime >= subMessageDelay)
+        {
+            float fade = Mathf.Clamp01((Time.time - _endStateTime - subMessageDelay) / 0.6f);
+            GUIStyle subStyle = new GUIStyle(GUI.skin.label);
+            subStyle.fontSize = 28;
+            subStyle.alignment = TextAnchor.MiddleCenter;
+            subStyle.fontStyle = FontStyle.Bold;
+            subStyle.wordWrap = true;
+            subStyle.normal.textColor = new Color(1f, 1f, 1f, fade);
+
+            GUI.Label(new Rect(0, mainTop + mainHeight + 10f, Screen.width, 60f), sub, subStyle);
+        }
     }
 
     private void DrawVignette()
     {
         if (_player == null || _vignetteTex == null) return;
         if (MenuManager.Instance != null && MenuManager.Instance.InMenu) return;
+        if (_won || _lost) return;
         int max = _player.maxHealth;
         if (max <= 0) return;
         int hp = _player.health;

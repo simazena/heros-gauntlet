@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using StarterAssets;
 
 public class MenuManager : MonoBehaviour
@@ -10,14 +11,17 @@ public class MenuManager : MonoBehaviour
     public string[] storyChunks = new string[]
     {
         "You are an enhanced hero, placed inside the Gauntlet, an arena built to test superhuman fighters.",
-        "To prove yourself, you must survive escalating waves of fast attackers and heavier brutes.",
+        "To prove yourself, you must survive escalating waves of fast brawlers and heavy brutes.",
         "Chain punch and kick combos, roll to evade strikes, and vault over foes to reposition.",
         "Restorative pickups appear on platforms between waves. Complete the Gauntlet to prove you are ready for greater threats beyond."
     };
 
     public static MenuManager Instance;
+    public static bool SkipMenuOnLoad;
+    public enum Difficulty { Easy, Normal, Hard }
+    public static Difficulty SelectedDifficulty = Difficulty.Normal;
 
-    private enum State { Title, Controls, HowToPlay, Story, Playing }
+    private enum State { Title, Controls, Story, Playing }
     private State _state = State.Title;
 
     private WaveSpawner _waveSpawner;
@@ -27,7 +31,7 @@ public class MenuManager : MonoBehaviour
     private int _storyIndex;
     private float _storyChunkStart;
 
-    public bool InMenu => _state == State.Title || _state == State.Controls || _state == State.HowToPlay;
+    public bool InMenu => _state == State.Title || _state == State.Controls;
     public float HealthFill => healthFillDuration <= 0f ? 1f : Mathf.Clamp01((Time.unscaledTime - _menuStartTime) / healthFillDuration);
 
     void OnEnable() { Instance = this; }
@@ -36,6 +40,18 @@ public class MenuManager : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void Bootstrap()
     {
+        SceneManager.sceneLoaded -= OnSceneLoaded;
+        SceneManager.sceneLoaded += OnSceneLoaded;
+        EnsureExists();
+    }
+
+    static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        EnsureExists();
+    }
+
+    static void EnsureExists()
+    {
         if (FindAnyObjectByType<MenuManager>() != null) return;
         GameObject go = new GameObject("MenuManager");
         go.AddComponent<MenuManager>();
@@ -43,6 +59,13 @@ public class MenuManager : MonoBehaviour
 
     void Start()
     {
+        if (SkipMenuOnLoad)
+        {
+            SkipMenuOnLoad = false;
+            _state = State.Playing;
+            return;
+        }
+
         Time.timeScale = 0f;
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -85,7 +108,6 @@ public class MenuManager : MonoBehaviour
         {
             case State.Title: DrawTitle(); break;
             case State.Controls: DrawControls(); break;
-            case State.HowToPlay: DrawHowToPlay(); break;
         }
     }
 
@@ -163,7 +185,40 @@ public class MenuManager : MonoBehaviour
 
         if (GUI.Button(new Rect(x, y, w, h), "Play", btnStyle)) StartGame();
         if (GUI.Button(new Rect(x, y + spacing, w, h), "Controls", btnStyle)) _state = State.Controls;
-        if (GUI.Button(new Rect(x, y + spacing * 2, w, h), "How to Play", btnStyle)) _state = State.HowToPlay;
+
+        float diffY = y + spacing * 2 + 20f;
+        GUIStyle diffLabel = new GUIStyle(GUI.skin.label);
+        diffLabel.fontSize = 22;
+        diffLabel.alignment = TextAnchor.MiddleCenter;
+        diffLabel.fontStyle = FontStyle.Bold;
+        diffLabel.normal.textColor = Color.white;
+        GUI.Label(new Rect(0, diffY, Screen.width, 30), "Difficulty", diffLabel);
+
+        float dw = 110f, dh = 50f, dgap = 12f;
+        float total = 3 * dw + 2 * dgap;
+        float dx = (Screen.width - total) / 2f;
+        float dyy = diffY + 36f;
+        string[] names = { "Easy", "Normal", "Hard" };
+        for (int i = 0; i < 3; i++)
+        {
+            Difficulty d = (Difficulty)i;
+            bool selected = SelectedDifficulty == d;
+            GUIStyle ds = new GUIStyle(GUI.skin.button);
+            ds.fontSize = 22;
+            ds.fontStyle = FontStyle.Bold;
+            Color c = selected ? new Color(1f, 0.9f, 0.4f, 1f) : btnStyle.normal.textColor;
+            ds.normal.textColor = c;
+            ds.hover.textColor = c;
+            ds.active.textColor = c;
+            ds.focused.textColor = c;
+            ds.onHover.textColor = c;
+            ds.onActive.textColor = c;
+            ds.onFocused.textColor = c;
+            if (GUI.Button(new Rect(dx + i * (dw + dgap), dyy, dw, dh), names[i], ds))
+            {
+                SelectedDifficulty = d;
+            }
+        }
     }
 
     void DrawControls()
@@ -185,28 +240,6 @@ public class MenuManager : MonoBehaviour
             "Left Click - Punch combo (3 hits)\n" +
             "Right Click - Kick combo (2 hits)";
         GUI.Label(new Rect(0, Screen.height * 0.22f, Screen.width, Screen.height * 0.55f), text, body);
-
-        DrawBackButton();
-    }
-
-    void DrawHowToPlay()
-    {
-        DrawHeader("How to Play");
-
-        GUIStyle body = new GUIStyle(GUI.skin.label);
-        body.fontSize = 22;
-        body.alignment = TextAnchor.UpperCenter;
-        body.normal.textColor = Color.white;
-        body.wordWrap = true;
-
-        string text =
-            "Hero's Gauntlet is a wave-based arena combat game.\n\n" +
-            "Enemies pour out of the portal in increasingly tough waves. " +
-            "Punch and kick them down with combos, and roll to dodge. You're invulnerable during the roll.\n\n" +
-            "Between waves, jump onto the platforms around the arena to grab health pickups (10 HP each). " +
-            "You can't pick them up at full health, so save them for when you need them.\n\n" +
-            "Survive every wave to win. If your health hits zero, it's game over and the run resets.";
-        GUI.Label(new Rect(Screen.width * 0.15f, Screen.height * 0.22f, Screen.width * 0.7f, Screen.height * 0.55f), text, body);
 
         DrawBackButton();
     }

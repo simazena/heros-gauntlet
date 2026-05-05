@@ -25,12 +25,12 @@ public class PlayerControl : MonoBehaviour
     public float attackLockoutTrim = 0.35f;
     public float punch1Arc = 60f;
     public float punch2Arc = 90f;
-    public float punch3Arc = 60f;
+    public float punch3Arc = 90f;
     public float kick1Arc = 90f;
     public float kick2Arc = 210f;
     public float punch1ArcOffset = 0f;
     public float punch2ArcOffset = 45f;
-    public float punch3ArcOffset = 0f;
+    public float punch3ArcOffset = -45f;
     public float kick1ArcOffset = 45f;
     public float kick2ArcOffset = 0f;
 
@@ -92,6 +92,7 @@ public class PlayerControl : MonoBehaviour
     private float _groundY;
     private AudioSource _heartbeatSource;
     private int _heartbeatState;
+    private bool _heartbeatSilenced;
 
     void Start()
     {
@@ -356,7 +357,7 @@ public class PlayerControl : MonoBehaviour
     {
         if (_heartbeatSource == null) return;
         int desired = 0;
-        if (!_isDead && health > 0)
+        if (!_isDead && !_heartbeatSilenced && health > 0)
         {
             if (health <= heartbeatCriticalThreshold && heartbeatCriticalSfx != null) desired = 2;
             else if (health <= heartbeatLowThreshold && heartbeatLowSfx != null) desired = 1;
@@ -375,8 +376,9 @@ public class PlayerControl : MonoBehaviour
         }
     }
 
-    private void StopHeartbeat()
+    public void StopHeartbeat()
     {
+        _heartbeatSilenced = true;
         if (_heartbeatSource == null) return;
         _heartbeatSource.Stop();
         _heartbeatSource.clip = null;

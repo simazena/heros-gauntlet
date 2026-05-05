@@ -13,6 +13,15 @@ public class WaveSpawner : MonoBehaviour
     public float enemy2MoveSpeed = 1f;
     public int enemy2Damage = 15;
     public float enemy2AttackCooldown = 5f;
+    public float enemy2AttackRange = 1.5f;
+    public int hardEnemy1Damage = 10;
+    public int hardEnemy2Damage = 20;
+    public int hardEnemy1Health = 80;
+    public int hardEnemy2Health = 130;
+    public int easyEnemy1Health = 30;
+    public int easyEnemy2Health = 80;
+    public int easyEnemy1Damage = 3;
+    public int easyEnemy2Damage = 10;
     public AudioClip enemy1AttackSfx;
     public AudioClip enemy2AttackSfx;
     public AudioClip healthPickupSfx;
@@ -153,8 +162,27 @@ public class WaveSpawner : MonoBehaviour
             EnemyAttack ea = enemy.GetComponent<EnemyAttack>();
             if (ea != null) ea.attackSfx = enemy1AttackSfx;
         }
+        ApplyDifficulty(enemy, isEnemy2);
         EnemyHealth eh = enemy.GetComponent<EnemyHealth>();
         if (eh != null) _activeEnemies.Add(eh);
+    }
+
+    private void ApplyDifficulty(GameObject enemy, bool isEnemy2)
+    {
+        if (MenuManager.SelectedDifficulty == MenuManager.Difficulty.Hard)
+        {
+            EnemyAttack ea = enemy.GetComponent<EnemyAttack>();
+            if (ea != null) ea.damage = isEnemy2 ? hardEnemy2Damage : hardEnemy1Damage;
+            EnemyHealth eh = enemy.GetComponent<EnemyHealth>();
+            if (eh != null) eh.health = isEnemy2 ? hardEnemy2Health : hardEnemy1Health;
+        }
+        else if (MenuManager.SelectedDifficulty == MenuManager.Difficulty.Easy)
+        {
+            EnemyHealth eh = enemy.GetComponent<EnemyHealth>();
+            if (eh != null) eh.health = isEnemy2 ? easyEnemy2Health : easyEnemy1Health;
+            EnemyAttack ea = enemy.GetComponent<EnemyAttack>();
+            if (ea != null) ea.damage = isEnemy2 ? easyEnemy2Damage : easyEnemy1Damage;
+        }
     }
 
     private void ApplyEnemy2Stats(GameObject enemy)
@@ -168,6 +196,7 @@ public class WaveSpawner : MonoBehaviour
         {
             ea.damage = enemy2Damage;
             ea.attackCooldown = enemy2AttackCooldown;
+            ea.attackRange = enemy2AttackRange;
             ea.attackSfx = enemy2AttackSfx;
         }
     }
