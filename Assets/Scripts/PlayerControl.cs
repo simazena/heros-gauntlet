@@ -24,14 +24,14 @@ public class PlayerControl : MonoBehaviour
     public float attackFallbackHitDelay = 0.3f;
     public float attackLockoutTrim = 0.35f;
     public float punch1Arc = 60f;
-    public float punch2Arc = 90f;
-    public float punch3Arc = 90f;
-    public float kick1Arc = 90f;
+    public float punch2Arc = 120f;
+    public float punch3Arc = 120f;
+    public float kick1Arc = 120f;
     public float kick2Arc = 210f;
     public float punch1ArcOffset = 0f;
     public float punch2ArcOffset = 45f;
     public float punch3ArcOffset = -45f;
-    public float kick1ArcOffset = 45f;
+    public float kick1ArcOffset = 60f;
     public float kick2ArcOffset = 0f;
 
     public float rollDuration = 1.4f;

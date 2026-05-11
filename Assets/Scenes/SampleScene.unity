@@ -4189,14 +4189,14 @@ MonoBehaviour:
   attackFallbackHitDelay: 0.3
   attackLockoutTrim: 0.35
   punch1Arc: 60
-  punch2Arc: 90
-  punch3Arc: 90
-  kick1Arc: 90
+  punch2Arc: 120
+  punch3Arc: 120
+  kick1Arc: 120
   kick2Arc: 210
   punch1ArcOffset: 0
   punch2ArcOffset: 45
   punch3ArcOffset: -45
-  kick1ArcOffset: 45
+  kick1ArcOffset: 60
   kick2ArcOffset: 0
   rollDuration: 0.8
   rollCooldown: 1
