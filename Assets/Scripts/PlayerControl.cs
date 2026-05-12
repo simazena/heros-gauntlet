@@ -254,6 +254,15 @@ public class PlayerControl : MonoBehaviour
             return;
         }
 
+        bool attacking = Time.time < _punchLockoutEnd;
+        if (attacking)
+        {
+            _input.jump = false;
+            _spacePressedAt = -1f;
+            _jumpOverFired = false;
+            return;
+        }
+
         if (Keyboard.current.leftCtrlKey.wasPressedThisFrame)
         {
             TryStartAction(_animIDRoll, rollDuration, rollDistance, rollCooldown, false, 0f, 0f);

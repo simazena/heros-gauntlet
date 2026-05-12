@@ -233,9 +233,9 @@ public class MenuManager : MonoBehaviour
         string text =
             "W A S D - Move\n" +
             "Mouse - Look\n" +
-            "Shift - Sprint\n" +
+            "Shift (hold) - Sprint\n" +
             "Space (tap) - Jump\n" +
-            "Space (hold) - Jump Over\n" +
+            "Space (hold) - Jump Over (invulnerable)\n" +
             "Left Ctrl - Roll (invulnerable)\n" +
             "Left Click - Punch combo (3 hits)\n" +
             "Right Click - Kick combo (2 hits)";
@@ -277,8 +277,6 @@ public class MenuManager : MonoBehaviour
     {
         _state = State.Story;
         Time.timeScale = 1f;
-        Cursor.lockState = CursorLockMode.Locked;
-        Cursor.visible = false;
         _storyIndex = 0;
         _storyChunkStart = Time.time;
         if (storyChunks == null || storyChunks.Length == 0) FinishStory();
@@ -287,6 +285,8 @@ public class MenuManager : MonoBehaviour
     void FinishStory()
     {
         _state = State.Playing;
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
         if (_player != null)
         {
             StarterAssetsInputs input = _player.GetComponent<StarterAssetsInputs>();
